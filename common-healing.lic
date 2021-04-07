@@ -52,6 +52,7 @@ module DRCH
     wounds = parse_wounds(wounds_line)
     parasites = parse_parasites(parasites_line)
     lodged_items = parse_lodged_items(lodged_line)
+    score = calculate_score(wounds)
 
     return {
       'wounds' => wounds,
@@ -59,7 +60,8 @@ module DRCH
       'parasites' => parasites,
       'lodged' => lodged_items,
       'poisoned' => poisoned,
-      'diseased' => diseased
+      'diseased' => diseased,
+      'score' => score
     }
   end
 
@@ -133,6 +135,76 @@ module DRCH
     health_data = check_health
     health_data['wounds'] = wounds
     return health_data
+  end
+
+  def perceive_health_other(target)
+    return unless DRStats.empath?
+
+    case DRC.bput("touch #{target}", 'Touch what', 'feels cold and you are unable to sense anything', 'avoids your touch', 'You sense a successful empathic link')
+    when 'avoids your touch', 'feels cold and you are unable to sense anything', 'Touch what'
+      return nil
+    end
+
+    pause 0.5
+    health_lines = reget(100).map(&:strip).reverse
+
+    # Example of what we're parsing:
+    # ===
+    # Corgar's injuries include...
+    # Wounds to the LEFT ARM:
+    # Fresh External:  cuts and bruises about the left arm -- more than minor
+    # Scars External:  severe scarring and chunks of flesh missing from the left arm -- very severe
+    # Fresh Internal:  minor swelling and bruising around the left arm -- more than minor
+    # Scars Internal:  a completely paralyzed left arm -- useless
+    # ===
+    if health_lines.grep(/^(?<name>.*)'s injuries include\b/).any?
+      target_name = Regexp.last_match[:name]
+      stop_line = "#{target_name}'s injuries include..."
+      perceived_wounds = Hash.new { |h, k| h[k] = [] }
+      body_part = nil
+      health_lines
+        .take_while { |line| line != stop_line }
+        .reverse # put back in normal order so we parse <body part> line then <wound> lines
+        .each do |line|
+          case line
+          when /^Wounds to the (.+):/
+            body_part = Regexp.last_match(1)
+            perceived_wounds[body_part] = []
+          when /^(Fresh|Scars) (External|Internal)/
+            # Do regex then grab matches for wound details.
+            line =~ $DRCH_PERCEIVE_HEALTH_SEVERITY_REGEX
+            severity = $DRCH_WOUND_TO_SEVERITY_MAP[Regexp.last_match[:severity]]
+            is_internal = Regexp.last_match[:location] == 'Internal'
+            is_scar = Regexp.last_match[:freshness] == 'Scars'
+            perceived_wounds[body_part] << Wound.new(
+              body_part: body_part,
+              severity: severity,
+              is_internal: is_internal,
+              is_scar: is_scar
+            )
+          end
+        end
+    end
+
+    # Now go through the preceived wounds map (key=body part)
+    # and bucket the wounds by severity into the 'wounds' map (key=severity).
+    wounds = Hash.new { |h, k| h[k] = [] }
+    perceived_wounds.values.flatten.each do |wound|
+      wounds[wound.severity] << wound
+    end
+
+    score = calculate_score(wounds)
+
+    # The perceive command incurs roundtime.
+    # We delayed waiting until now so that
+    # the script can use that time to parse
+    # the output rather than waiting unnecessarily.
+    waitrt?
+
+    return {
+      'wounds' => wounds,
+      'score' => score
+    }
   end
 
   # Given lines of text from the HEALTH command output,
@@ -291,6 +363,12 @@ module DRCH
     min_skill = $DRCH_BLEED_RATE_TO_SEVERITY_MAP[bleed_rate][:skill_to_tend]
     return false if min_skill.nil?
     DRSkill.getrank('First Aid') >= min_skill
+  end
+
+  # Compute a weighted summary score from a wound list.
+  # Commonly used for thresholding for healing activities
+  def calculate_score(wounds_by_severity)
+    wounds_by_severity.map { |severity, wound_list| (severity**2) * wound_list.count }.reduce(:+)
   end
 
   class Wound
