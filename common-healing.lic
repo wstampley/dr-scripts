@@ -368,7 +368,7 @@ module DRCH
   # Compute a weighted summary score from a wound list.
   # Commonly used for thresholding for healing activities
   def calculate_score(wounds_by_severity)
-    wounds_by_severity.map { |severity, wound_list| (severity**2) * wound_list.count }.reduce(:+)
+    wounds_by_severity.map { |severity, wound_list| (severity**2) * wound_list.count }.reduce(:+) || 0
   end
 
   class Wound
