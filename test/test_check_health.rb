@@ -163,41 +163,4 @@ class TestCheckHealth < Minitest::Test
     end
   end
 
-  def parse_perceived_health(messages, stop_line, assertions = [])
-    @test = run_script_with_proc(['common', 'common-healing-data', 'common-healing'], proc do
-      perceived_wounds = DRCH.parse_perceived_health(messages, stop_line)
-      assertions = [assertions] unless assertions.is_a?(Array)
-      assertions.each { |assertion| assertion.call(health_result) }
-    end)
-  end
-
-  def test_perc_other_reads_wounds
-    messages = [
-      'Arnas\'s injuries include...',
-      'Wounds to the NECK:',
-      'Fresh External:  light scratches -- insignificant (1/13)',
-      'Fresh Internal:  slightly tender -- insignificant (1/13)',
-      'Wounds to the RIGHT ARM:',
-      'Fresh External:  cuts and bruises about the right arm -- more than minor (4/13)',
-      'Fresh Internal:  minor swelling and bruising around the right arm -- more than minor (4/13)',
-      'Wounds to the LEFT ARM:',
-      'Fresh Internal:  minor swelling and bruising around the left arm -- more than minor (4/13)',
-      'Wounds to the RIGHT LEG:',
-      'Fresh External:  light scratches -- negligible (2/13)',
-      'Fresh Internal:  slightly tender -- negligible (2/13)',
-      'You also sense...',
-      '... a small red blood mite on his right leg.',
-      'Arnas is suffering from an insignificant loss of vitality (0%).'
-    ].reverse
-    parse_perceived_health(messages, 'Arnas\'s injuries include...')
-  end
-
-# Touch Other - Poison Only
-#
-# Caprianna's injuries include...
-# ... no injuries to speak of.
-#
-# She has a seriously poisoned right arm.
-# Caprianna has normal vitality.
-
 end

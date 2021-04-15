@@ -71,8 +71,6 @@ module DRCH
   def perceive_health
     return unless DRStats.empath?
 
-    wounds = Hash.new { |h, k| h[k] = [] }
-
     case DRC.bput('perceive health self', 'feel only an aching emptiness', 'Roundtime')
     when 'feel only an aching emptiness'
       # Empath is permashocked and cannot perceive wounds.
@@ -80,38 +78,15 @@ module DRCH
     end
 
     pause 0.5
-    health_lines = reget(100).map(&:strip).reverse
+    perceived_health_data = parse_perceived_health
 
-    # Example of what we're parsing:
-    # ===
-    # Your injuries include...
-    # Wounds to the LEFT ARM:
-    # Fresh External:  cuts and bruises about the left arm -- more than minor
-    # Scars External:  severe scarring and chunks of flesh missing from the left arm -- very severe
-    # Fresh Internal:  minor swelling and bruising around the left arm -- more than minor
-    # Scars Internal:  a completely paralyzed left arm -- useless
-    # ===
-    if health_lines.grep(/^Your injuries include\b/).any?
-      stop_line = "Your injuries include..."
-      perceived_wounds = parse_perceived_health(health_lines, stop_line)
-    end
-
-    # Now go through the preceived wounds map (key=body part)
-    # and bucket the wounds by severity into the 'wounds' map (key=severity).
-    perceived_wounds.values.flatten.each do |wound|
-      wounds[wound.severity] << wound
-    end
-
-    # The perceive command incurs roundtime.
-    # We delayed waiting until now so that
-    # the script can use that time to parse
-    # the output rather than waiting unnecessarily.
+    # The perceive command incurs roundtime. We delayed waiting until now so that
+    # the script can use that time to parse the output rather than waiting unnecessarily.
     waitrt?
 
-    # Return same response as `check_health`
-    # but with wound details per perceive health.
+    # Return same response as `check_health` but with wound details per perceive health.
     health_data = check_health
-    health_data['wounds'] = wounds
+    health_data['wounds'] = perceived_health_data['wounds']
     return health_data
   end
 
@@ -124,47 +99,38 @@ module DRCH
     end
 
     pause 0.5
-    health_lines = reget(100).map(&:strip).reverse
-
-    # Example of what we're parsing:
-    # ===
-    # Corgar's injuries include...
-    # Wounds to the LEFT ARM:
-    # Fresh External:  cuts and bruises about the left arm -- more than minor
-    # Scars External:  severe scarring and chunks of flesh missing from the left arm -- very severe
-    # Fresh Internal:  minor swelling and bruising around the left arm -- more than minor
-    # Scars Internal:  a completely paralyzed left arm -- useless
-    # ===
-    if health_lines.grep(/^(?<name>.*)'s injuries include\b/).any?
-      target_name = Regexp.last_match[:name]
-      stop_line = "#{target_name}'s injuries include..."
-      perceived_wounds = parse_perceived_health(health_lines, stop_line)
-    end
-
-    # Now go through the perceived wounds map (key=body part)
-    # and bucket the wounds by severity into the 'wounds' map (key=severity).
-    wounds = Hash.new { |h, k| h[k] = [] }
-    perceived_wounds.values.flatten.each do |wound|
-      wounds[wound.severity] << wound
-    end
+    perceived_health_data = parse_perceived_health(target)
 
     score = calculate_score(wounds)
     waitrt? # This is probably not needed, touching others doesn't seem to cause RT in normal situations.
 
     return {
-      'wounds' => wounds,
+      'wounds' => perceived_health_data.wounds,
+      'poisoned' => perceived_health.poisoned,
       'score' => score
     }
   end
 
-  def parse_perceived_health(health_lines, stop_line)
+  # Examples of what this parses can be found in test/test_check_health.rb
+  def parse_perceived_health(target = nil)
+
+    stop_line = target.nil? ? 'Your injuries include...' : "#{target}'s injuries include..."
+    health_lines = reget(100).map(&:strip).reverse
+    if !health_lines.include?(stop_line)
+      print "exiting due to stop line: #{stop_line}"
+      return
+    end
+
     perceived_wounds = Hash.new { |h, k| h[k] = [] }
+    perceived_poison = false
     body_part = nil
     health_lines
       .take_while { |line| line != stop_line }
       .reverse # put back in normal order so we parse <body part> line then <wound> lines
       .each do |line|
         case line
+        when /^.* (?:has|have) a .* poisoned (?<part>[\w\s]*)/
+          perceived_poison = true
         when /^Wounds to the (.+):/
           body_part = Regexp.last_match(1)
           perceived_wounds[body_part] = []
@@ -182,7 +148,18 @@ module DRCH
           )
         end
       end
-    perceived_wounds
+
+    # Now go through the preceived wounds map (key=body part)
+    # and bucket the wounds by severity into the 'wounds' map (key=severity).
+    wounds = Hash.new { |h, k| h[k] = [] }
+    perceived_wounds.values.flatten.each do |wound|
+      wounds[wound.severity] << wound
+    end
+
+    return {
+      'wounds' => wounds,
+      'poisoned' => perceived_poison
+    }
   end
 
   # Given lines of text from the HEALTH command output,
