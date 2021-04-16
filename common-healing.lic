@@ -101,7 +101,7 @@ module DRCH
     pause 0.5
     perceived_health_data = parse_perceived_health(target)
 
-    score = calculate_score(perceived_health['wounds'])
+    score = calculate_score(perceived_health_data['wounds'])
     perceived_health_data['score'] = score
     waitrt? # This is probably not needed, touching others doesn't seem to cause RT in normal situations.
 
