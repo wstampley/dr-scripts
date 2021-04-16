@@ -101,14 +101,11 @@ module DRCH
     pause 0.5
     perceived_health_data = parse_perceived_health(target)
 
-    score = calculate_score(wounds)
+    score = calculate_score(perceived_health['wounds'])
+    perceived_health_data['score'] = score
     waitrt? # This is probably not needed, touching others doesn't seem to cause RT in normal situations.
 
-    return {
-      'wounds' => perceived_health_data.wounds,
-      'poisoned' => perceived_health.poisoned,
-      'score' => score
-    }
+    return perceived_health_data
   end
 
   # Examples of what this parses can be found in test/test_check_health.rb
@@ -117,23 +114,33 @@ module DRCH
     stop_line = target.nil? ? 'Your injuries include...' : "#{target}'s injuries include..."
     health_lines = reget(100).map(&:strip).reverse
     if !health_lines.include?(stop_line)
-      print "exiting due to stop line: #{stop_line}"
       return
     end
 
+    parasites_regex = Regexp.union($DRCH_PARASITES_REGEX_LIST)
+
     perceived_wounds = Hash.new { |h, k| h[k] = [] }
+    perceived_parasites = Hash.new { |h, k| h[k] = [] }
     perceived_poison = false
-    body_part = nil
+    wound_body_part = nil
     health_lines
       .take_while { |line| line != stop_line }
       .reverse # put back in normal order so we parse <body part> line then <wound> lines
       .each do |line|
         case line
-        when /^.* (?:has|have) a .* poisoned (?<part>[\w\s]*)/
+        when parasites_regex
+          line =~ /.* on (?:his|her|your) (?<body_part>[\w\s]*)/
+          body_part = Regexp.last_match(1)
+          severity = 1
+          perceived_parasites[severity] << Wound.new(
+            body_part: body_part,
+            severity: severity
+          )
+        when /^.* (?:has|have) a .* poisoned (?<part>[\w\s]*)/, /^.* (?:has|have) a .* (?<part>internal) poison/
           perceived_poison = true
         when /^Wounds to the (.+):/
-          body_part = Regexp.last_match(1)
-          perceived_wounds[body_part] = []
+          wound_body_part = Regexp.last_match(1)
+          perceived_wounds[wound_body_part] = []
         when /^(Fresh|Scars) (External|Internal)/
           # Do regex then grab matches for wound details.
           line =~ $DRCH_PERCEIVE_HEALTH_SEVERITY_REGEX
@@ -141,7 +148,7 @@ module DRCH
           is_internal = Regexp.last_match[:location] == 'Internal'
           is_scar = Regexp.last_match[:freshness] == 'Scars'
           perceived_wounds[body_part] << Wound.new(
-            body_part: body_part,
+            body_part: wound_body_part,
             severity: severity,
             is_internal: is_internal,
             is_scar: is_scar
@@ -158,6 +165,7 @@ module DRCH
 
     return {
       'wounds' => wounds,
+      'parasites' => perceived_parasites,
       'poisoned' => perceived_poison
     }
   end
