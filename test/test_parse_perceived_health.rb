@@ -44,6 +44,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Arnas', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(false, perceived_health['poisoned'], 'Person should have not been poisoned and is')},
+      proc { |perceived_health| assert_equal(1, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
   end
@@ -58,6 +59,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Caprianna', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(0, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
   end
@@ -88,6 +90,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Gorloke', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
   end
@@ -132,6 +135,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, nil, [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
   end
@@ -145,8 +149,33 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Brisby', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(false, perceived_health['poisoned'], 'Person should have not been poisoned and is')},
-      proc { |perceived_health| assert_equal(0, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
+      proc { |perceived_health| assert_equal(0, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
     ])
   end
+
+  def test_parse_perceived_health_other_nothing_wrong
+    messages = [
+      'Corgar\'s injuries include...',
+      'Wounds to the RIGHT LEG:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the LEFT HAND:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the ABDOMEN:',
+      '  Fresh Internal:  slightly tender -- negligible (2/13)',
+      'He has a critically strong internal poison.',
+      'Corgar is suffering from an insignificant loss of vitality (1%).'
+    ]
+    parse_perceived_health(messages, 'Corgar', [
+      #proc { |perceived_health| print perceived_health },
+      proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
+      proc { |perceived_health| assert_equal(2, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
+    ])
+  end
+
+
 
 end
