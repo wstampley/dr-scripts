@@ -154,7 +154,7 @@ class TestPerceiveHealth < Minitest::Test
     ])
   end
 
-  def test_parse_perceived_health_other_nothing_wrong
+  def test_parse_perceived_health_other_internal_poison_and_wounds
     messages = [
       'Corgar\'s injuries include...',
       'Wounds to the RIGHT LEG:',
@@ -176,6 +176,23 @@ class TestPerceiveHealth < Minitest::Test
     ])
   end
 
-
+  def test_parse_perceived_health_self_internal_poison_and_wounds
+    messages = [
+      'Your injuries include...',
+      'Wounds to the HEAD:',
+      'Fresh External:  light scratches -- negligible (2/13)',
+      'Scars External:  slight discoloration -- negligible (2/13)',
+      'Wounds to the ABDOMEN:',
+      'Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'You have a mildly strong internal poison.',
+      'You have normal vitality.',
+    ]
+    parse_perceived_health(messages, nil, [
+      #proc { |perceived_health| print perceived_health },
+      proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
+      proc { |perceived_health| assert_equal(2, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
+    ])
+  end
 
 end
