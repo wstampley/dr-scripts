@@ -119,6 +119,9 @@ module DRCH
     end
 
     parasites_regex = Regexp.union($DRCH_PARASITES_REGEX_LIST)
+    poisons_regex = Regexp.union([/^.* (?:has|have) a .* poisoned (?<part>[\w\s]*)/,
+                                  /^.* (?:has|have) a .* (?<part>internal) poison/,
+                                  /Cyanide poison/])
 
     perceived_wounds = Hash.new { |h, k| h[k] = [] }
     perceived_parasites = Hash.new { |h, k| h[k] = [] }
@@ -137,7 +140,7 @@ module DRCH
             body_part: body_part,
             severity: severity
           )
-        when /^.* (?:has|have) a .* poisoned (?<part>[\w\s]*)/, /^.* (?:has|have) a .* (?<part>internal) poison/
+        when poisons_regex
           perceived_poison = true
         when /^Wounds to the (.+):/
           wound_body_part = Regexp.last_match(1)

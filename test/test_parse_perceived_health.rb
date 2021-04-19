@@ -195,4 +195,44 @@ class TestPerceiveHealth < Minitest::Test
     ])
   end
 
+  def test_parse_perceived_health_other_cyanide_poison_and_wounds_and_lodges
+    messages = [
+      'Corgar\'s injuries include...',
+      'Wounds to the RIGHT ARM:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the RIGHT LEG:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the LEFT LEG:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the LEFT HAND:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the CHEST:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  minor swelling and bruising in the chest area -- more than minor (4/13)',
+      'Wounds to the ABDOMEN:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  a severely bloated and discolored abdomen with strange round lumps under the skin -- very severe (10/13)',
+      'Wounds to the BACK:',
+      '  Fresh Internal:  a severely swollen and deeply bruised back with ribs or vertebrae protruding out from the skin -- devastating (11/13)',
+      'Wounds to the RIGHT EYE:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the SKIN:',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'He looks somewhat tired and seems to be having trouble breathing.  Cyanide poison!',
+      'You also sense...',
+      '... a tiny dart lodged firmly in his head.',
+      'Corgar is suffering from an extreme loss of vitality (81%).'
+    ]
+    parse_perceived_health(messages, 'Corgar', [
+      #proc { |perceived_health| print perceived_health },
+      proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
+      proc { |perceived_health| assert_equal(4, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
+    ])
+  end
 end
