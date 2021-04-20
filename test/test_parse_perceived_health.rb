@@ -44,6 +44,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Arnas', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(false, perceived_health['poisoned'], 'Person should have not been poisoned and is')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(1, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
@@ -59,6 +60,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Caprianna', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(0, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
@@ -90,6 +92,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Gorloke', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
@@ -135,6 +138,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, nil, [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wounded locations') }
     ])
@@ -149,6 +153,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Brisby', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(false, perceived_health['poisoned'], 'Person should have not been poisoned and is')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(0, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
     ])
@@ -171,6 +176,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, 'Corgar', [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(2, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
     ])
@@ -190,6 +196,7 @@ class TestPerceiveHealth < Minitest::Test
     parse_perceived_health(messages, nil, [
       #proc { |perceived_health| print perceived_health },
       proc { |perceived_health| assert_equal(true, perceived_health['poisoned'], 'Person should have been poisoned and is not')},
+      proc { |perceived_health| assert_equal(false, perceived_health['diseased'], 'Person should not have been diseased and is')},
       proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
       proc { |perceived_health| assert_equal(2, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
     ])
@@ -235,4 +242,66 @@ class TestPerceiveHealth < Minitest::Test
       proc { |perceived_health| assert_equal(4, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
     ])
   end
+
+  def test_parse_perceived_health_other_disease_and_wounds
+    messages = [
+      'Seakutsen\'s injuries include...',
+      'Wounds to the RIGHT ARM:',
+      '  Fresh External:  light scratches -- negligible (2/13)',
+      '  Fresh Internal:  slightly tender -- negligible (2/13)',
+      'Wounds to the LEFT LEG:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the CHEST:',
+      '  Fresh External:  deep cuts across the chest area -- harmful (5/13)',
+      '  Fresh Internal:  severely swollen and bruised chest area -- harmful (5/13)',
+      'Wounds to the ABDOMEN:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'Wounds to the BACK:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      'His wounds are infected.',
+      'Seakutsen is suffering from an insignificant loss of vitality (1%).'
+    ]
+    parse_perceived_health(messages, 'Seakutsen', [
+      #proc { |perceived_health| print perceived_health },
+      proc { |perceived_health| assert_equal(false, perceived_health['poisoned'], 'Person should not have been poisoned and is')},
+      proc { |perceived_health| assert_equal(true, perceived_health['diseased'], 'Person should have been diseased and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
+      proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
+    ])
+  end
+
+  def test_parse_perceived_health_self_disease_and_wounds
+    messages = [
+      'Your injuries include...',
+      'Wounds to the RIGHT ARM:',
+      '  Fresh External:  light scratches -- negligible (2/13)',
+      '  Scars External:  slight discoloration -- negligible (2/13)',
+      '  Fresh Internal:  slightly tender -- negligible (2/13)',
+      '  Scars Internal:  minor internal scarring -- negligible (2/13)',
+      'Wounds to the LEFT LEG:',
+      '  Fresh External:  light scratches -- insignificant (1/13)',
+      '  Scars External:  slight discoloration -- insignificant (1/13)',
+      '  Fresh Internal:  slightly tender -- insignificant (1/13)',
+      '  Scars Internal:  minor internal scarring -- insignificant (1/13)',
+      'Wounds to the CHEST:',
+      '  Fresh External:  cuts and bruises about the chest area -- more than minor (4/13)',
+      '  Scars External:  minor scarring along the chest area -- more than minor (4/13)',
+      '  Fresh Internal:  minor swelling and bruising in the chest area -- more than minor (4/13)',
+      '  Scars Internal:  an occasional twitching in the chest area -- more than minor (4/13)  ',
+      'Your wounds are infected.',
+      'You have normal vitality.',
+      'You are unusually full of extra energy.'
+    ]
+    parse_perceived_health(messages, nil, [
+      #proc { |perceived_health| print perceived_health },
+      proc { |perceived_health| assert_equal(false, perceived_health['poisoned'], 'Person should not have been poisoned and is')},
+      proc { |perceived_health| assert_equal(true, perceived_health['diseased'], 'Person should have been diseased and is not')},
+      proc { |perceived_health| assert_equal(0, perceived_health['parasites'].count, 'Person has wrong number of parasites')},
+      proc { |perceived_health| assert_equal(3, perceived_health['wounds'].count, 'Person has wrong number of wound severity keys')}
+    ])
+  end
+
 end
