@@ -126,12 +126,15 @@ module DRCH
     perceived_wounds = Hash.new { |h, k| h[k] = [] }
     perceived_parasites = Hash.new { |h, k| h[k] = [] }
     perceived_poison = false
+    perceived_disease = false
     wound_body_part = nil
     health_lines
       .take_while { |line| line != stop_line }
       .reverse # put back in normal order so we parse <body part> line then <wound> lines
       .each do |line|
         case line
+        when /^[\w]* wounds are infected/
+          perceived_disease = true
         when parasites_regex
           line =~ /.* on (?:his|her|your) (?<body_part>[\w\s]*)/
           body_part = Regexp.last_match(1)
@@ -168,6 +171,7 @@ module DRCH
     end
 
     return {
+      'diseased' => perceived_disease,
       'wounds' => wounds,
       'parasites' => perceived_parasites,
       'poisoned' => perceived_poison
