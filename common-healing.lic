@@ -77,17 +77,16 @@ module DRCH
       return check_health
     end
 
-    pause 0.5
     perceived_health_data = parse_perceived_health
-
-    # The perceive command incurs roundtime. We delayed waiting until now so that
-    # the script can use that time to parse the output rather than waiting unnecessarily.
-    waitrt?
 
     # Return same response as `check_health` but with wound details per perceive health.
     health_data = check_health
     health_data['wounds'] = perceived_health_data['wounds']
-    health_data['score'] = calculate_score(perceived_health_data['wounds'])
+    health_data['score'] = perceived_health_data['score']
+
+    # The `perceive health self` command incurs roundtime. We delayed waiting until now so that
+    # the script can use that time to parse the output rather than waiting unnecessarily.
+    waitrt?
     return health_data
   end
 
@@ -99,18 +98,13 @@ module DRCH
       return nil
     end
 
-    pause 0.5
-    perceived_health_data = parse_perceived_health(target)
-
-    score = calculate_score(perceived_health_data['wounds'])
-    perceived_health_data['score'] = score
-    waitrt? # This is probably not needed, touching others doesn't seem to cause RT in normal situations.
-
-    return perceived_health_data
+    return parse_perceived_health(target)
   end
 
   # Examples of what this parses can be found in test/test_check_health.rb
   def parse_perceived_health(target = nil)
+
+    pause 0.5 # Pause to wait for the full response to come back from the server
 
     stop_line = target.nil? ? 'Your injuries include...' : "#{target}'s injuries include..."
     health_lines = reget(100).map(&:strip).reverse
@@ -173,6 +167,7 @@ module DRCH
     return {
       'diseased' => perceived_disease,
       'wounds' => wounds,
+      'score' => calculate_score(wounds),
       'parasites' => perceived_parasites,
       'poisoned' => perceived_poison
     }
