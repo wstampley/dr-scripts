@@ -123,7 +123,7 @@ module DRCH
     diseases_regex = Regexp.union([
       /^[\w]+ wounds are infected/,
       /^[\w]+ (?:has|have) a dormant infection/,
-      /^[\w]+ body is covered in open oozing sores/
+      /^[\w]+ (?:body|skin) is covered in open oozing sores/
     ])
 
     perceived_wounds = Hash.new { |h, k| h[k] = [] }
