@@ -113,22 +113,34 @@ module DRCH
     end
 
     parasites_regex = Regexp.union($DRCH_PARASITES_REGEX_LIST)
-    poisons_regex = Regexp.union([/^.* (?:has|have) a .* poisoned (?<part>[\w\s]*)/,
-                                  /^.* (?:has|have) a .* (?<part>internal) poison/,
-                                  /Cyanide poison/])
+
+    poisons_regex = Regexp.union([
+      /^[\w]+ (?:has|have) a .* poison/,
+      /having trouble breathing/,
+      /Cyanide poison/
+    ])
+
+    diseases_regex = Regexp.union([
+      /^[\w]+ wounds are infected/,
+      /^[\w]+ (?:has|have) a dormant infection/,
+      /^[\w]+ body is covered in open oozing sores/
+    ])
 
     perceived_wounds = Hash.new { |h, k| h[k] = [] }
     perceived_parasites = Hash.new { |h, k| h[k] = [] }
     perceived_poison = false
     perceived_disease = false
     wound_body_part = nil
+
     health_lines
-      .take_while { |line| line != stop_line }
+      .take_while { |line| !line.casecmp?(stop_line) }
       .reverse # put back in normal order so we parse <body part> line then <wound> lines
       .each do |line|
         case line
-        when /^[\w]* wounds are infected/
+        when diseases_regex
           perceived_disease = true
+        when poisons_regex
+          perceived_poison = true
         when parasites_regex
           line =~ /.* on (?:his|her|your) (?<body_part>[\w\s]*)/
           body_part = Regexp.last_match(1)
@@ -137,8 +149,6 @@ module DRCH
             body_part: body_part,
             severity: severity
           )
-        when poisons_regex
-          perceived_poison = true
         when /^Wounds to the (.+):/
           wound_body_part = Regexp.last_match(1)
           perceived_wounds[wound_body_part] = []
@@ -165,11 +175,11 @@ module DRCH
     end
 
     return {
-      'diseased' => perceived_disease,
       'wounds' => wounds,
-      'score' => calculate_score(wounds),
       'parasites' => perceived_parasites,
-      'poisoned' => perceived_poison
+      'poisoned' => perceived_poison,
+      'diseased' => perceived_disease,
+      'score' => calculate_score(wounds)
     }
   end
 
