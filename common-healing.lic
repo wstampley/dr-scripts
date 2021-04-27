@@ -102,7 +102,6 @@ module DRCH
       # Since this value becomes part of regex patterns later,
       # make sure we're using the actual character's name.
       target = Regexp.last_match[:name]
-      echo "target=#{target}"
     end
 
     return parse_perceived_health(target)
