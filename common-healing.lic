@@ -93,9 +93,16 @@ module DRCH
   def perceive_health_other(target)
     return unless DRStats.empath?
 
-    case DRC.bput("touch #{target}", 'Touch what', 'feels cold and you are unable to sense anything', 'avoids your touch', 'You sense a successful empathic link')
+    case DRC.bput("touch #{target}", 'Touch what', 'feels cold and you are unable to sense anything', 'avoids your touch', 'You sense a successful empathic link has been forged between you and (?<name>\w+)\.')
     when 'avoids your touch', 'feels cold and you are unable to sense anything', 'Touch what'
       return nil
+    when /You sense a successful empathic link has been forged between you and (?<name>\w+)\./
+      # The target passed to the method might be abbreviated
+      # or not match the exact casing as the person's actual name.
+      # Since this value becomes part of regex patterns later,
+      # make sure we're using the actual character's name.
+      target = Regexp.last_match[:name]
+      echo "target=#{target}"
     end
 
     return parse_perceived_health(target)
@@ -133,7 +140,7 @@ module DRCH
     wound_body_part = nil
 
     health_lines
-      .take_while { |line| !line.casecmp?(stop_line) }
+      .take_while { |line| line != stop_line }
       .reverse # put back in normal order so we parse <body part> line then <wound> lines
       .each do |line|
         case line
@@ -183,7 +190,7 @@ module DRCH
     }
   end
 
-  # Given lines of text from the HEALTH command output,
+  # Given lines of text from the HEALTH command output in reverse,
   # returns a map of any bleeding wounds where the keys
   # are the severity and the values are the list of bleeding wounds.
   def parse_bleeders(health_lines)
