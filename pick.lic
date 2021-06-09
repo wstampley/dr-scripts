@@ -150,8 +150,8 @@ class BetterPick
         break if stop_picking?
 
         do_buffs
-        DRCI.get_item?(box_noun, source)
         DRC.bput('sit', 'You sit', 'You are already sitting') unless sitting?
+        DRCI.get_item?(box_noun, source)
         attempt_open(box_noun)
       end
       break if stop_picking?
