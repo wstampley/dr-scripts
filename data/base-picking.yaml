@@ -155,7 +155,7 @@ picking:
     #nervepoison:
     poison: A bent needle sticks harmlessly out
     #poisoncrossbow:
-    #poisongas:
+    poisongas: Someone has unhooked the stopper, rendering it harmless
     reaper: was picked apart and removed from the
     scythe: It is no longer attached to a razor-sharp scythe blade
     shocker: whatever it was has been pried out
