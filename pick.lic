@@ -4,7 +4,7 @@
 
 custom_require.call(%w[common common-arcana common-items common-money common-travel drinfomon equipmanager events spellmonitor])
 
-class BetterPick
+class Pick
 
   def initialize
     arg_definitions = [
@@ -72,7 +72,7 @@ class BetterPick
     @trap_parts = picking_data['trap_parts']
 
     if @debug
-      echo "better-pick-debug: Settings..."
+      echo "Settings..."
       echo "- Sources: #{@sources}"
       echo "- harvest_traps: #{@harvest_traps}"
       echo "- component_container: #{@component_container}"
@@ -609,4 +609,4 @@ before_dying do
   EquipmentManager.new.wear_equipment_set?('standard')
 end
 
-BetterPick.new
+Pick.new
