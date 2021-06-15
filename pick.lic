@@ -2,7 +2,7 @@
   Documentation: https://elanthipedia.play.net/Lich_script_repository#pick
 =end
 
-custom_require.call(%w[common common-arcana common-items common-money common-travel drinfomon equipmanager events spellmonitor])
+custom_require.call(%w[common common-arcana common-healing common-items common-money common-travel drinfomon equipmanager events spellmonitor])
 
 class Pick
 
@@ -36,7 +36,9 @@ class Pick
     @stop_pick_on_mindlock = @settings.stop_pick_on_mindlock
     @loot_nouns = @settings.lootables
     @trash_nouns = get_data('items').trash_nouns
-    @use_glance = DRStats.thief?
+
+    @has_glance = DRStats.thief? && DRStats.circle >= 13
+    @use_glance = @settings.pick['use_glance'].nil? ? @has_glance : @settings.pick['use_glance']
 
     @trash_empty_boxes = @settings.pick['trash_empty_boxes'] || false
     @worn_trashcan = @settings.worn_trashcan
@@ -56,7 +58,7 @@ class Pick
     @disarm_identify_messages = picking_data['disarm_messages_by_difficulty']
 
     @disarm_succeeded = picking_data['disarm_succeeded']
-    @trap_sprung = picking_data['trap_sprung']
+    @trap_sprung_matches = picking_data['trap_sprung']
     @disarm_retry = picking_data['disarm_retry']
     @disarm_identify_failed = picking_data['disarm_identify_failed']
     @disarm_quick_threshold = @settings.pick['disarm_quick_threshold'] || 0
@@ -77,6 +79,8 @@ class Pick
       echo "- harvest_traps: #{@harvest_traps}"
       echo "- component_container: #{@component_container}"
       echo "- stop_pick_on_mindlock: #{@stop_pick_on_mindlock}"
+      echo "- has_glance: #{@has_glance}"
+      echo "- use_glance: #{@use_glance}"
       echo "- loot_nouns: #{@loot_nouns}"
       echo "- trash_nouns: #{@trash_nouns}"
       echo "- disarm_quick: #{@disarm_quick_threshold}"
@@ -245,10 +249,11 @@ class Pick
     while holding_box?(current_box) && current_box['trapped'] || current_box['locked']
 
       while holding_box?(current_box) && current_box['trapped']
+        echo "Starting disarm for #{current_box['noun']}..." if @debug
+
         while current_box['trap_difficulty'].nil?
           glance(current_box) if @use_glance
           identify_trap(current_box)
-          check_danger
         end
 
         if current_box['trap_difficulty'] >= @disarm_too_hard_threshold
@@ -259,32 +264,33 @@ class Pick
 
         while current_box['trapped'] && !current_box['trap_difficulty'].nil?
           disarm_trap(current_box)
-          check_danger
         end
       end
 
       # Make sure we still have the box in hand, cause sometimes failed disarms make that not true...
       while holding_box?(current_box) && !current_box['trapped'] && current_box['locked']
+        echo "Starting lockpicking for #{current_box['noun']}..." if @debug
+
         find_lockpick unless @settings.use_lockpick_ring
 
         while current_box['lock_difficulty'].nil?
           glance(current_box) if @use_glance
           identify_lock(current_box)
-          check_danger
         end
 
         while !current_box['trapped'] && current_box['locked'] && !current_box['lock_difficulty'].nil?
           pick(current_box)
-          check_danger
         end
       end
     end
 
-    return unless holding_box?(current_box)
-
-    stow_hands_except(current_box['noun'])
-    loot(current_box['noun'])
-    dispose_empty_box(current_box)
+    if holding_box?(current_box)
+      stow_hands_except(current_box['noun'])
+      loot(current_box['noun'])
+      dispose_empty_box(current_box)
+    else
+      echo "You lost your box somehow." if @debug
+    end
   end
 
   def try_unlock_box_with_key(box)
@@ -316,8 +322,15 @@ class Pick
 
     Flags.reset('disarm-trap-type')
 
-    disarm_identify_match = DRC.bput("disarm my #{box['noun']} identify", @disarm_identify_failed, @disarm_identify_messages, @disarmed_trap_messages.values)
+    disarm_identify_match = DRC.bput("disarm my #{box['noun']} identify",
+      @trap_sprung_matches,
+      @disarm_identify_failed,
+      @disarm_identify_messages,
+      @disarmed_trap_messages.values)
+
     case disarm_identify_match
+    when *@trap_sprung_matches
+      handle_trap_sprung
     when *@disarm_identify_failed
       echo "Failed to identify trap" if @debug
     when *@disarmed_trap_messages.values
@@ -354,10 +367,9 @@ class Pick
     Flags.reset('disarm-shift')
     trapped = true
 
-    case DRC.bput("disarm my #{box['noun']} #{speed}", @trap_sprung, @disarm_retry, @disarm_succeeded)
-    when *@trap_sprung
-      DRC.message('**SPRUNG TRAP**')
-      DRC.message('**SPRUNG TRAP**')
+    case DRC.bput("disarm my #{box['noun']} #{speed}", @trap_sprung_matches, @disarm_retry, @disarm_succeeded)
+    when *@trap_sprung_matches
+      handle_trap_sprung
       trapped = false
     when *@disarm_retry
       trapped = true
@@ -373,6 +385,26 @@ class Pick
       box['trapped'] = true
       box['trap_difficulty'] = nil
     end
+  end
+
+  def handle_trap_sprung
+    DRC.message('**SPRUNG TRAP**')
+    DRC.message('**SPRUNG TRAP**')
+
+    pause 1 while stunned?
+
+    health = DRCH.check_health
+    echo "health: bleeders - #{health['bleeders']} : poison: #{health['poisoned']} - score: #{health['score']}" if @debug
+    return unless health['bleeders'].any? || health['poisoned'] || health['score'] > @settings.saferoom_health_threshold
+
+    echo "Things are bad enough to go heal..." if @debug
+    snapshot = Room.current.id
+    DRC.wait_for_script_to_complete('safe-room')
+
+    echo "handle_trap_sprung: safe-room finished - returning to room #{snapshot}" if @debug
+    DRCT.walk_to(snapshot)
+
+    echo "handle_trap_sprung: danger handled" if @debug
   end
 
   def handle_trap_too_hard(box)
@@ -391,8 +423,16 @@ class Pick
   def identify_lock(box)
     echo "identify_lock(#{box})" if @debug
 
-    pick_identify_match = DRC.bput("pick my #{box['noun']} ident", @pick_identify_messages, @pick_retry, /Find a more appropriate tool and try again/, /It's not even locked, why bother/)
+    pick_identify_match = DRC.bput("pick my #{box['noun']} ident",
+      @trap_sprung_matches,
+      @pick_identify_messages,
+      @pick_retry,
+      /Find a more appropriate tool and try again/,
+      /It's not even locked, why bother/)
+
     case pick_identify_match
+    when *@trap_sprung_matches
+      handle_trap_sprung
     when /Find a more appropriate tool and try again/, *@pick_retry
       box['locked'] = true
       box['lock_difficulty'] = nil
@@ -425,15 +465,14 @@ class Pick
     Flags.reset('more-traps')
     locked = true
 
-    case DRC.bput("pick my #{box['noun']} #{speed}", @trap_sprung, 'not even locked',
+    case DRC.bput("pick my #{box['noun']} #{speed}", @trap_sprung_matches, 'not even locked',
                   'you remove your lockpick and open and remove the lock', 'You discover another lock protecting',
                   'You are unable to make any progress towards opening the lock', /Find a more appropriate tool and try again/,
                   'Pick what?')
     when 'Find a more appropriate tool and try again'
       @use_lockpick_ring = false
-    when *@trap_sprung
-      DRC.message('**SPRUNG TRAP**')
-      DRC.message('**SPRUNG TRAP**')
+    when *@trap_sprung_matches
+      handle_trap_sprung
     when 'you remove your lockpick and open and remove the lock', 'not even locked'
       locked = false
     when 'Pick what?'
@@ -560,16 +599,6 @@ class Pick
       DRCI.stow_hands
       exit
     end
-  end
-
-  def check_danger
-    echo "check_danger: stunned?: #{stunned?} - bleeding?: #{bleeding?} - poisoned?: #{poisoned?}" if @debug
-    pause 0.5 while stunned?
-    return unless bleeding? || poisoned?
-
-    snapshot = Room.current.id
-    DRC.wait_for_script_to_complete('safe-room')
-    DRCT.walk_to(snapshot)
   end
 
   def analyze(box)
