@@ -33,6 +33,7 @@ class Pick
       exit
     end
 
+    @skipped_box_storage = @settings.picking_box_storage
     @stop_pick_on_mindlock = @settings.stop_pick_on_mindlock
     @loot_nouns = @settings.lootables
     @trash_nouns = get_data('items').trash_nouns
@@ -65,6 +66,7 @@ class Pick
     @disarm_normal_threshold = @settings.pick['disarm_normal_threshold'] || 2
     @disarm_careful_threshold = @settings.pick['disarm_careful_threshold'] || 5
     @disarm_too_hard_threshold = @settings.pick['disarm_too_hard_threshold'] || 10
+    @trap_blacklist = @settings.pick['trap_blacklist'] || []
 
     @all_trap_messages = picking_data['traps']
     @disarmed_trap_messages = picking_data['disarmed_traps']
@@ -87,6 +89,7 @@ class Pick
       echo "- disarm_normal: #{@disarm_normal_threshold}"
       echo "- disarm_careful: #{@disarm_careful_threshold}"
       echo "- disarm_too_hard: #{@disarm_too_hard_threshold}"
+      echo "- trap_blacklist: #{@trap_blacklist}"
       echo "- pick_quick: #{@pick_quick_threshold}"
       echo "- pick_normal: #{@pick_normal_threshold}"
       echo "- pick_careful: #{@pick_careful_threshold}"
@@ -112,8 +115,8 @@ class Pick
     @sources.each do |source_container|
       DRCI.open_container?(source_container)
     end
-    DRCI.open_container?(@settings.picking_box_storage) if @settings.picking_box_storage
-    DRCI.open_container?(@settings.component_container) if @settings.component_container
+    DRCI.open_container?(@skipped_box_storage) if @skipped_box_storage
+    DRCI.open_container?(@component_container) if @component_container
   end
 
   def check_for_boxes
@@ -246,7 +249,7 @@ class Pick
       try_unlock_box_with_key(current_box)
     end
 
-    while holding_box?(current_box) && current_box['trapped'] || current_box['locked']
+    while holding_box?(current_box) && (current_box['trapped'] || current_box['locked'])
 
       while holding_box?(current_box) && current_box['trapped']
         echo "Starting disarm for #{current_box['noun']}..." if @debug
@@ -258,11 +261,11 @@ class Pick
 
         if current_box['trap_difficulty'] >= @disarm_too_hard_threshold
           echo 'identified box trap as too hard' if @debug
-          handle_trap_too_hard(current_box)
+          handle_trap_too_hard_or_blacklisted(current_box)
           return
         end
 
-        while current_box['trapped'] && !current_box['trap_difficulty'].nil?
+        while holding_box?(current_box) && current_box['trapped'] && !current_box['trap_difficulty'].nil?
           disarm_trap(current_box)
         end
       end
@@ -320,28 +323,49 @@ class Pick
   def identify_trap(box)
     echo "identify_trap(#{box})" if @debug
 
+    Flags.reset('more-traps')
     Flags.reset('disarm-trap-type')
 
     disarm_identify_match = DRC.bput("disarm my #{box['noun']} identify",
+      'Thanks to an instinct provided by your sense of security',
       @trap_sprung_matches,
       @disarm_identify_failed,
       @disarm_identify_messages,
       @disarmed_trap_messages.values)
 
+    trapped = true
+    trap = nil
+    difficulty = nil
+
     case disarm_identify_match
+    when 'Thanks to an instinct provided by your sense of security'
+      echo 'Dodged a trap with Safe...'
+      trapped = false
     when *@trap_sprung_matches
       handle_trap_sprung
+      trapped = false
     when *@disarm_identify_failed
       echo "Failed to identify trap" if @debug
     when *@disarmed_trap_messages.values
       echo "Identified already disarmed trap: #{Flags['disarm-trap-type']} - #{disarm_identify_match}"
-      box['trap'] = @disarmed_trap_messages.key("#{disarm_identify_match}")
-      box['trapped'] = false
-      box['trap_difficulty'] = 0
+      trap = @disarmed_trap_messages.key("#{disarm_identify_match}")
+      trapped = false
+      difficulty = 0
     else
       echo "Identified trap: #{Flags['disarm-trap-type']} - #{disarm_identify_match}" if @debug
-      box['trap'] = @all_trap_messages.key("#{Flags['disarm-trap-type']}")
-      box['trap_difficulty'] = @disarm_identify_messages.find_index(disarm_identify_match)
+      trap = @all_trap_messages.key("#{Flags['disarm-trap-type']}")
+      difficulty = @disarm_identify_messages.find_index(disarm_identify_match)
+    end
+
+    box['trapped'] = trapped
+    box['trap'] = trap
+    box['trap_difficulty'] = difficulty
+
+    # Handle Triggering During Identify and Finding Another...
+    if Flags['more-traps']
+      echo "Saw another trap after disarming/tripping one..." if @debug
+      box['trapped'] = true
+      box['trap_difficulty'] = nil
     end
   end
 
@@ -367,12 +391,21 @@ class Pick
     Flags.reset('disarm-shift')
     trapped = true
 
-    case DRC.bput("disarm my #{box['noun']} #{speed}", @trap_sprung_matches, @disarm_retry, @disarm_succeeded)
+    disarm_result = DRC.bput("disarm my #{box['noun']} #{speed}",
+      'Thanks to an instinct provided by your sense of security',
+      @trap_sprung_matches,
+      @disarm_retry,
+      @disarm_succeeded)
+
+    case disarm_result
     when *@trap_sprung_matches
       handle_trap_sprung
       trapped = false
     when *@disarm_retry
       trapped = true
+    when 'Thanks to an instinct provided by your sense of security'
+      echo 'Dodged a trap with Safe...'
+      trapped = false
     when *@disarm_succeeded
       trapped = false
     end
@@ -381,10 +414,12 @@ class Pick
     box['trap_difficulty'] += 1 if Flags['disarm-shift']
 
     if Flags['more-traps']
-      echo "Saw another trap after disarming one..." if @debug
+      echo "Saw another trap after disarming/tripping one..." if @debug
       box['trapped'] = true
       box['trap_difficulty'] = nil
     end
+
+    echo "Updated box after disarm attempt: #{box}" if @debug
   end
 
   def handle_trap_sprung
@@ -407,17 +442,15 @@ class Pick
     echo "handle_trap_sprung: danger handled" if @debug
   end
 
-  def handle_trap_too_hard(box)
-    if @settings.picking_box_storage && DRC.right_hand
-      echo "Putting away box cause it was not disarmed" if @debug
-      unless DRCI.put_away_item?(box['noun'], @settings.picking_box_storage)
-        echo "Throwing away box cause it was not disarmed and can't be stowed" if @debug
-        DRCI.dispose_trash(box['noun'], @worn_trashcan, @worn_trashcan_verb)
-      end
-    elsif DRC.right_hand
+  def handle_trap_too_hard_or_blacklisted(box)
+    if @skipped_box_storage
+      return if DRCI.put_away_item?(box['noun'], @skipped_box_storage)
+      echo "Throwing away box cause it was not disarmed and can't be stowed" if @debug
+    else
       echo "Throwing away box cause it was not disarmed and picking_box_storage is not set" if @debug
-      DRCI.dispose_trash(box['noun'], @worn_trashcan, @worn_trashcan_verb)
     end
+
+    DRCI.dispose_trash(box['noun'], @worn_trashcan, @worn_trashcan_verb)
   end
 
   def identify_lock(box)
@@ -529,7 +562,11 @@ class Pick
       return
     end
 
-    DRC.bput("fill my #{@settings.gem_pouch_adjective} pouch with my #{box_noun}", 'You fill your', 'You open your', 'What were you referring to', /any gems/, /too full to fit/)  if (@settings.fill_pouch_with_box || @settings.loot_specials.empty?)
+    fill_result = DRC.bput("fill my #{@settings.gem_pouch_adjective} pouch with my #{box_noun}", 'You fill your', 'You open your', 'What were you referring to', /any gems/, /too full to fit/)  if (@settings.fill_pouch_with_box || @settings.loot_specials.empty?)
+    case fill_result
+    when /too full to fit/
+      swap_out_full_gempouch
+    end
 
     box_items = DRCI.get_item_list(box_noun, 'look');
     loot = box_items.map { |item| DRC.get_noun(item) }
@@ -553,20 +590,21 @@ class Pick
 
     if @settings.loot_specials.find { |x| /\b#{x['name']}\b/i =~ item_long }
       DRCI.put_away_item?(item, special['bag'])
-    elsif @loot_nouns.find { |thing| item_long.include?(thing) && !item_long.include?('sunstone runestone') }
-      case DRC.bput("stow my #{item}", 'You put', 'You open', 'You think the .* pouch is too full to fit', 'You\'d better tie it up before putting')
-      when /You put/, /You open/ # Normal Case
+      return
+    end
+
+    if @loot_nouns.find { |thing| item_long.include?(thing) && !item_long.include?('sunstone runestone') }
+      case DRC.bput("stow my #{item}", 'You put', 'You open', 'is too full to fit another gem', /You'd better tie it up before putting/)
+      when /You put/, /You open/
         return
-      when /You'd better tie it up/ # Gem + Full Untied Gem Pouch
-        DRC.bput('tie my pouch', 'You tie')
-        DRC.bput("stow #{item}", 'You pick')
-      when /'You think the .* pouch is too full to fit/ # Gem + Full Gem Pouch
-        DRC.bput("drop #{item}", 'You drop')
-        return unless @settings.spare_gem_pouch_container
+      when /You'd better tie it up/, 'is too full to fit another gem'
         swap_out_full_gempouch
-        DRC.bput("stow #{item}", 'You pick')
+        DRCI.stow_item?(item)
       end
-    elsif @trash_nouns.find { |thing| item_long =~ /\b#{thing}\b/i }
+      return
+    end
+
+    if @trash_nouns.find { |thing| item_long =~ /\b#{thing}\b/i }
       DRCI.dispose_trash(item, @worn_trashcan, @worn_trashcan_verb)
     else
       DRC.message("***Unrecognized Item: #{item_long} - trashing it.***")
@@ -575,14 +613,25 @@ class Pick
   end
 
   def swap_out_full_gempouch
+    if @settings.spare_gem_pouch_container.nil?
+      DRC.message('You should set spare_gem_pouch_container to swap out your full pouch for you...')
+      return
+    end
+
+    lowered_item = DRC.left_hand
+    DRCI.lower_item?(DRC.left_hand.noun) if lowered_item
+
     DRCI.remove_item?("#{@settings.gem_pouch_adjective} pouch")
     if @settings.full_pouch_container
       DRCI.put_away_item?("#{@settings.gem_pouch_adjective} pouch", @settings.full_pouch_container)
     else
       DRCI.stow_item?("#{@settings.gem_pouch_adjective} pouch")
     end
+
     DRCI.get_item?("#{@settings.gem_pouch_adjective} pouch", @settings.spare_gem_pouch_container)
     DRCI.wear_item?("#{@settings.gem_pouch_adjective} pouch")
+
+    DRCI.get_item?(lowered_item) if lowered_item
   end
 
   def find_lockpick
