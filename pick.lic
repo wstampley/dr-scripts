@@ -203,7 +203,7 @@ class Pick
 
   # TODO - Move to DRCA
   def stop_barb_abilities
-    DRC.bput('meditate stop')
+    DRC.bput('meditate stop', '.*')
   end
 
   # TODO - Move to DRCA
