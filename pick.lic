@@ -157,7 +157,7 @@ class Pick
         break if stop_picking?
 
         do_buffs
-        DRC.bput('sit', 'You sit', 'You are already sitting') unless sitting?
+        DRC.bput('sit', 'You sit', 'You are already sitting', 'You rise', 'While swimming?') unless sitting?
         DRCI.get_item?(box_noun, source)
         attempt_open(box_noun)
       end
