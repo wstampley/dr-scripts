@@ -594,10 +594,10 @@ class Pick
     end
 
     if @loot_nouns.find { |thing| item_long.include?(thing) && !item_long.include?('sunstone runestone') }
-      case DRC.bput("stow my #{item}", 'You put', 'You open', 'is too full to fit another gem', /You'd better tie it up before putting/)
+      case DRC.bput("stow my #{item}", /You put/, /You open/, /is too full to fit another gem/, /You'd better tie it up before putting/)
       when /You put/, /You open/
         return
-      when /You'd better tie it up/, 'is too full to fit another gem'
+      when /You'd better tie it up/, /is too full to fit another gem/
         swap_out_full_gempouch
         DRCI.stow_item?(item)
       end
