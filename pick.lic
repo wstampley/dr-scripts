@@ -33,8 +33,13 @@ class Pick
       exit
     end
 
+    @use_lockpick_ring = @settings.use_lockpick_ring
+    @lockpick_container = @settings.lockpick_container
     @skipped_box_storage = @settings.picking_box_storage
+
+    @tie_gem_pouches = @settings.tie_gem_pouches
     @stop_pick_on_mindlock = @settings.stop_pick_on_mindlock
+
     @loot_nouns = @settings.lootables
     @trash_nouns = get_data('items').trash_nouns
 
@@ -46,6 +51,11 @@ class Pick
     @worn_trashcan_verb = @settings.worn_trashcan_verb
 
     @dismantle_type = @settings.lockpick_dismantle
+
+    @pick_buff_bot_name = @settings.lockpick_buff_bot
+    @pick_buff_bot_buff = @settings.pick['buff_bot_buff'] || 'hol'
+
+    @has_pick_waggle = @settings.waggle_sets['pick']
 
     picking_data = get_data('picking').picking
     @lockpick_costs = picking_data['lockpick_costs']
@@ -78,9 +88,13 @@ class Pick
     if @debug
       echo "Settings..."
       echo "- Sources: #{@sources}"
+      echo "- use_lockpick_ring: #{@use_lockpick_ring}"
+      echo "- lockpick_container: #{@lockpick_container}"
       echo "- harvest_traps: #{@harvest_traps}"
       echo "- component_container: #{@component_container}"
       echo "- stop_pick_on_mindlock: #{@stop_pick_on_mindlock}"
+      echo "- pick_buff_bot_name: #{@pick_buff_bot_name}"
+      echo "- pick_buff_bot_buff: #{@pick_buff_bot_buff}"
       echo "- has_glance: #{@has_glance}"
       echo "- use_glance: #{@use_glance}"
       echo "- loot_nouns: #{@loot_nouns}"
@@ -173,11 +187,11 @@ class Pick
   end
 
   def do_buffs
-    if @settings.lockpick_buff_bot && DRRoom.pcs.include?(@settings.lockpick_buff_bot)
-      DRC.bput("whisper #{@settings.lockpick_buff_bot} buff hol", "You whisper")
+    if @pick_buff_bot_name && DRRoom.pcs.include?(@pick_buff_bot_name)
+      DRC.bput("whisper #{@pick_buff_bot_name} buff #{@pick_buff_bot_buff}", "You whisper")
     end
 
-    if @settings.waggle_sets['pick']
+    if @has_pick_waggle
       DRC.wait_for_script_to_complete('buff', ['pick'])
     end
   end
@@ -217,10 +231,10 @@ class Pick
   end
 
   def refill_ring
-    return unless @settings.use_lockpick_ring
+    return unless @use_lockpick_ring
     return if @settings.skip_lockpick_ring_refill
 
-    lockpicks_needed = DRCI.count_lockpick_container(@settings.lockpick_container)
+    lockpicks_needed = DRCI.count_lockpick_container(@lockpick_container)
     return if lockpicks_needed < 15
 
     cost = @lockpick_costs[@settings.lockpick_type]
@@ -230,7 +244,7 @@ class Pick
     end
 
     DRCM.ensure_copper_on_hand(cost * lockpicks_needed, @settings)
-    DRCT.refill_lockpick_container(@settings.lockpick_type, @settings.hometown, @settings.lockpick_container, lockpicks_needed)
+    DRCT.refill_lockpick_container(@settings.lockpick_type, @settings.hometown, @lockpick_container, lockpicks_needed)
   end
 
   def attempt_open(box_noun)
@@ -274,14 +288,14 @@ class Pick
       while holding_box?(current_box) && !current_box['trapped'] && current_box['locked']
         echo "Starting lockpicking for #{current_box['noun']}..." if @debug
 
-        find_lockpick unless @settings.use_lockpick_ring
-
         while current_box['lock_difficulty'].nil?
           glance(current_box) if @use_glance
+          find_lockpick unless @use_lockpick_ring
           identify_lock(current_box)
         end
 
         while !current_box['trapped'] && current_box['locked'] && !current_box['lock_difficulty'].nil?
+          find_lockpick unless @use_lockpick_ring
           pick(current_box)
         end
       end
@@ -500,10 +514,13 @@ class Pick
 
     case DRC.bput("pick my #{box['noun']} #{speed}", @trap_sprung_matches, 'not even locked',
                   'you remove your lockpick and open and remove the lock', 'You discover another lock protecting',
-                  'You are unable to make any progress towards opening the lock', /Find a more appropriate tool and try again/,
+                  'You are unable to make any progress towards opening the lock', 'Find a more appropriate tool and try again',
+                  /If you're going to use a lockpick from the lockpick ring/,
                   'Pick what?')
     when 'Find a more appropriate tool and try again'
       @use_lockpick_ring = false
+    when /If you're going to use a lockpick from the lockpick ring/
+      @use_lockpick_ring = true
     when *@trap_sprung_matches
       handle_trap_sprung
     when 'you remove your lockpick and open and remove the lock', 'not even locked'
@@ -527,8 +544,11 @@ class Pick
     end
   end
 
-  # Put away lockpick or skeleton key, need both hands to loot and dismantle box.
   def stow_hands_except(item)
+    # Put loose lockpicks back where we were told to get them from
+    DRCI.put_away_item?('lockpick', @lockpick_container) if DRCI.in_hands?('lockpick')
+
+    # Clean up whatever other random crap we have
     DRCI.stow_hand('left') unless DRC.left_hand.nil? || DRCI.in_left_hand?(item)
     DRCI.stow_hand('right') unless DRC.right_hand.nil? || DRCI.in_right_hand?(item)
   end
@@ -630,20 +650,15 @@ class Pick
 
     DRCI.get_item?("#{@settings.gem_pouch_adjective} pouch", @settings.spare_gem_pouch_container)
     DRCI.wear_item?("#{@settings.gem_pouch_adjective} pouch")
+    DRC.bput("tie my #{@settings.gem_pouch_adjective} pouch", 'You tie') if @tie_gem_pouches
 
     DRCI.get_item?(lowered_item) if lowered_item
   end
 
   def find_lockpick
-    return if left_hand
+    return if DRC.left_hand
 
-    if DRCI.get_item?('lockpick')
-      # If we had to find a loose lockpick then either
-      # the player isn't using a lockpick ring or
-      # the lockpick ring is now empty. Toggle setting
-      # so that script will stow the left hand.
-      @settings.use_lockpick_ring = false
-    else
+    if !DRCI.get_item?('lockpick', @lockpick_container)
       DRC.message('***OUT OF LOCKPICKS***')
       DRCI.stow_hands
       exit
