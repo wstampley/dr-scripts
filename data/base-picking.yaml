@@ -23,30 +23,33 @@ picking:
   - fails to teach you anything about the lock guarding it
 
   disarm_succeeded:
-  - Reaching into the keyhole carefully, you knock free the coin sized piece of metal
-  - you manage to bend it well away from the mesh bag
-  - you carefully bend the head of the needle so that it can no longer spring
-  - Finally, the body of the faux insect falls away and crumbles
-  - allowing the deadly naphtha to drain harmlessly
-  - you carefully pry at the studs working them away from what you surmise are contacts
-  - so that the openings are sealed shut
-  - move the rune away from the lock and push it deep inside
-  - you feel satisfied that the trap is no longer a threat
-  - stopping it up and disarming the trap
-  - allowing it to be opened safely
-  - and allow its unsavory contents to spray harmlessly upon the ground
-  - but you finally bend it away from any spark-causing surfaces
-  - you manage to bend it away from the tiny hammer set to break it
-  - contact fibers away from the cube of black powder
-  - and unhook it from the blade rendering it harmless
-  - you wedge a small stick between the tiny hammer and the tube
-  - being extremely careful not to break it
-  - you shove the pin away from the tumblers and it springs upward and lodges
-  - then pack it into the pinholes, blocking them
-  - you nudge the black crystal away from its position next to the lock
-  - you gently remove the string that holds the bladder shut
-  - bend it away until its metal no longer touches the hinges at all
-  - use a strong sustained breath to blow the powder away from the lock
+    acid: stopping it up and disarming the trap
+    boomer: contact fibers away from the cube of black powder
+    bouncer: you shove the pin away from the tumblers and it springs upward and lodges
+    crossbow: so that the openings are sealed shut
+    curse: move the rune away from the lock and push it deep inside
+    cyanide: you feel satisfied that the trap is no longer a threat
+    disease: you gently remove the string that holds the bladder shut
+    fireants: you manage to bend it well away from the mesh bag
+    fleas: you manage to bend it away from the tiny hammer set to break it
+    #frog: Same as curse messaging
+    laughgas: you wedge a small stick between the tiny hammer and the tube
+    lightning: Reaching into the keyhole carefully, you knock free the coin sized piece of metal
+    mana: being extremely careful not to break it
+    mime: and allow its unsavory contents to spray harmlessly upon the ground
+    naphthafire: allowing the deadly naphtha to drain harmlessly
+    naphthasoak: poison or something else, you work first at draining it
+    nervepoison: you carefully bend the head of the needle so that it can no longer spring
+    #poison: Same as nerve poison messaging
+    #poisoncrossbow: Same as crossbow messaging
+    poisongas: allowing it to be opened safely
+    reaper: Finally, the body of the faux insect falls away and crumbles
+    scythe: and unhook it from the blade rendering it harmless
+    shadowling: you nudge the black crystal away from its position next to the lock
+    shocker: you carefully pry at the studs working them away from what you surmise are contacts
+    shrapnel: use a strong sustained breath to blow the powder away from the lock
+    sleep: then pack it into the pinholes, blocking them
+    teleport: bend it away until its metal no longer touches the hinges at all
 
   trap_sprung:
   - lock springs out and stabs you painfully in the finger.
@@ -109,61 +112,60 @@ picking:
     acid: you notice a tiny hole right next to the lock
     boomer: surrounded by a tight ring of fibrous cord
     bouncer: Connected to the pin is a small shaft that runs downward into a shadow
-    curse: you notice a small glowing rune hidden inside the box near the lock
-    frog: you notice a lumpy green rune hidden inside the
-    reaper: crust-covered black scarab of some unidentifiable substance
-    crossbow: concealing the points of several wickedly barbed crossbow bolts
-    poisoncrossbow: concealing the points of several crossbow bolts glistening with moisture
     concussion: you see a tiny metal tube just poking out of a small wad of brown clay
+    crossbow: concealing the points of several wickedly barbed crossbow bolts
+    curse: you notice a small glowing rune hidden inside the box near the lock
     cyanide: tip of a dart and a slight smell of almonds
     disease: you see what appears to be a small, swollen animal bladder
     fireants: The bag twitches on occasion, leading you to believe the blade
-    fleas: is a small glass tube of milky-white opacity. Small black dots bounce inside
+    fleas: Small black dots bounce inside, though the lack of transparency
+    frog: you notice a lumpy green rune hidden inside the
     laughgas: a tiny glass tube filled with a black gaseous substance
+    lightning: Looking closely into the keyhole, you spy what appears to be a pulsating ball
     mana: seal is covered in strange runes and a glass sphere is embedded within
     mime: A tiny bronze face, Fae in appearance, grins ridiculously
-    poisongas: You notice a vial of lime green liquid just under the
-    lightning: Looking closely into the keyhole, you spy what appears to be a pulsating ball
-    napthasoak: Though it's hard to see, there also appears to be a liquid-filled bladder inside the notch
-    napthafire: A tiny striker is cleverly concealed under the lid, set to ignite a frighteningly large vial
-    poison: You notice a tiny needle with a greenish discoloration
+    naphthafire: A tiny striker is cleverly concealed under the lid, set to ignite a frighteningly large vial
+    naphthasoak: Though it's hard to see, there also appears to be a liquid-filled bladder inside the notch
     nervepoison: You notice a tiny needle with a rust colored discoloration
+    poison: You notice a tiny needle with a greenish discoloration
+    poisongas: You notice a vial of lime green liquid just under the
+    poisoncrossbow: concealing the points of several crossbow bolts glistening with moisture
+    reaper: crust-covered black scarab of some unidentifiable substance
     scythe: you notice a glint of razor sharp steel hidden within a suspicious looking seam
+    shadowling: you notice a small black crystal deep in the shadows of the
     shocker: You notice two silver studs right below the keyhole
     shrapnel: keyhole is packed tightly with a powder around the insides of the lock
-    teleport: covered with a thin metal circle that has been lacquered with a shade
-    shadowling: you notice a small black crystal deep in the shadows of the
     sleep: Two sets of six pinholes on either side of the
+    teleport: covered with a thin metal circle that has been lacquered with a shade
 
   disarmed_traps:
     #acid:
     boomer: separated harmlessly from their charge
     #bouncer:
-    curse: You see a glowing rune pushed deep within the chest
-    frog: It seems far enough away from the lock to be harmless
-    crossbow: have been bent in such a way that they no longer will function
     #concussion:
+    crossbow: have been bent in such a way that they no longer will function # poisoncrossbow
+    curse: You see a glowing rune pushed deep within the chest
     cyanide: the dart has been moved too far out of position for the mechanism to function
     disease: animal bladder and a disconnected string
     fireants: indicating the trap is no longer a danger
     fleas: have been bent away from each other
+    frog: It seems far enough away from the lock to be harmless
     laughgas: You deem it quite safe
     lightning: seems a small portion of the trap has been removed
+    mana: The seal has been pried away from the lid
     mime: metallic visage rests a small deflated bladder
-    napthasoak: indicating a liquid was drained out
-    napthafire: as if something had been poured out the hole
+    naphthasoak: indicating a liquid was drained out
+    naphthafire: as if something had been poured out the hole
     #nervepoison:
     poison: A bent needle sticks harmlessly out
-    #poisoncrossbow:
     poisongas: Someone has unhooked the stopper, rendering it harmless
     reaper: was picked apart and removed from the
     scythe: It is no longer attached to a razor-sharp scythe blade
+    shadowling: It seems harmless
     shocker: whatever it was has been pried out
     #shrapnel:
-    teleport: has been peeled away from the hinges
-    mana: The seal has been pried away from the lid
-    shadowling: It seems harmless
     sleep: sealed with dirt, blocking whatever
+    teleport: has been peeled away from the hinges
 
   trap_parts:
   - glass reservoir

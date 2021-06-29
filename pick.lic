@@ -68,7 +68,7 @@ class Pick
 
     @disarm_identify_messages = picking_data['disarm_messages_by_difficulty']
 
-    @disarm_succeeded = picking_data['disarm_succeeded']
+    @disarm_succeeded = picking_data['disarm_succeeded'].values
     @trap_sprung_matches = picking_data['trap_sprung']
     @disarm_retry = picking_data['disarm_retry']
     @disarm_identify_failed = picking_data['disarm_identify_failed']
