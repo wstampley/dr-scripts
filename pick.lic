@@ -483,6 +483,7 @@ class Pick
     when /Find a more appropriate tool and try again/, *@pick_retry
       box['locked'] = true
       box['lock_difficulty'] = nil
+      @use_lockpick_ring = false
     when /It's not even locked, why bother/
       box['locked'] = false
       box['lock_difficulty'] = 0
