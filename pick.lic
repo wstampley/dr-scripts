@@ -361,7 +361,7 @@ class Pick
     when *@disarm_identify_failed
       echo "Failed to identify trap" if @debug
     when *@disarmed_trap_messages.values
-      echo "Identified already disarmed trap: #{Flags['disarm-trap-type']} - #{disarm_identify_match}"
+      echo "Identified already disarmed trap: #{disarm_identify_match}"
       trap = @disarmed_trap_messages.key("#{disarm_identify_match}")
       trapped = false
       difficulty = 0
@@ -403,17 +403,21 @@ class Pick
 
     Flags.reset('more-traps')
     Flags.reset('disarm-shift')
-    trapped = true
 
     disarm_result = DRC.bput("disarm my #{box['noun']} #{speed}",
       'Thanks to an instinct provided by your sense of security',
       @trap_sprung_matches,
+      @disarmed_trap_messages.values,
       @disarm_retry,
       @disarm_succeeded)
 
+    trapped = true
     case disarm_result
     when *@trap_sprung_matches
       handle_trap_sprung
+      trapped = false
+    when *@disarmed_trap_messages.values
+      echo "Identified already disarmed trap: #{disarm_result}"
       trapped = false
     when *@disarm_retry
       trapped = true
@@ -480,10 +484,13 @@ class Pick
     case pick_identify_match
     when *@trap_sprung_matches
       handle_trap_sprung
-    when /Find a more appropriate tool and try again/, *@pick_retry
+    when /Find a more appropriate tool and try again/
       box['locked'] = true
       box['lock_difficulty'] = nil
       @use_lockpick_ring = false
+    when *@pick_retry
+      box['locked'] = true
+      box['lock_difficulty'] = nil
     when /It's not even locked, why bother/
       box['locked'] = false
       box['lock_difficulty'] = 0
