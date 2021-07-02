@@ -140,7 +140,7 @@ picking:
     teleport: covered with a thin metal circle that has been lacquered with a shade
 
   disarmed_traps:
-    #acid:
+    acid: stuffed with dirt rendering the trap harmless
     boomer: separated harmlessly from their charge
     #bouncer:
     #concussion:
