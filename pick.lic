@@ -590,10 +590,12 @@ class Pick
       return
     end
 
-    fill_result = DRC.bput("fill my #{@settings.gem_pouch_adjective} pouch with my #{box_noun}", 'You fill your', 'You open your', 'What were you referring to', /any gems/, /too full to fit/)  if (@settings.fill_pouch_with_box || @settings.loot_specials.empty?)
-    case fill_result
-    when /too full to fit/
-      swap_out_full_gempouch
+    if (@settings.fill_pouch_with_box || @settings.loot_specials.empty?)
+      fill_result = DRC.bput("fill my #{@settings.gem_pouch_adjective} pouch with my #{box_noun}", 'You fill your', 'You open your', 'What were you referring to', /any gems/, /too full to fit/)
+      case fill_result
+      when /too full to fit/
+        swap_out_full_gempouch
+      end
     end
 
     box_items = DRCI.get_item_list(box_noun, 'look');
@@ -601,11 +603,16 @@ class Pick
     echo "box items: #{box_items} - loot: #{loot}" if @debug
 
     loot.each { |item| loot_item(item, box_noun) }
+
+    # Recurse for very full boxes
+    loot(box_noun) if loot.last() =~ /stuff/i
   end
 
   def loot_item(item, box)
     # We don't touch glowing fragments, since we took off all our armor...
     return if item =~ /fragment/i
+    # Stuff happens for very full boxes, and isn't really loot
+    return if item =~ /stuff/i
 
     item_long = nil
     case DRC.bput("get #{item} from my #{box}", 'You get (.*) from inside', 'You pick up \d* \w* (?:lirum|dokora|kronar)s?')
