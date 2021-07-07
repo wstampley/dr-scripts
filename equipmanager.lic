@@ -35,7 +35,9 @@ class EquipmentManager
 
     return false unless get_item?(item)
 
-    return swap_to_tool_type?(item, tool_type) if item.swappable
+    return true unless item.swappable
+
+    return swap_to_tool_type?(item, tool_type)
   end
 
   def swap_to_tool_type?(item, tool_type)
