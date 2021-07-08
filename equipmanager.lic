@@ -346,7 +346,7 @@ class EquipmentManager
     elsif (item.tie_to && get_item_helper(item, :tied)) || (item.worn && get_item_helper(item, :worn)) || (item.container && DRCI.get_item(item.short_name, item.container)) || get_item_helper(item, :stowed)
       true
     else
-      echo("Could not find #{item.short_name} anywhere.")
+      DRC.message("Could not find #{item.short_name} anywhere.")
       false
     end
   end
@@ -376,7 +376,7 @@ class EquipmentManager
   end
 
   def return_item(item)
-    unload_weapon(info.short_name) if info.needs_unloading
+    unload_weapon(item.short_name) if item.needs_unloading
     if item.tie_to
       stow_helper("tie my #{item.short_name} to #{item.tie_to}", item.short_name, 'You attach', 'you tie', 'You are a little too busy', 'Your wounds hinder your ability to do that')
     elsif item.wield
