@@ -186,7 +186,7 @@ class WorkOrders
     end
 
     tools.each do |tool|
-      @equipment_manager.get_tool?(@craft_type, tool.tool_types[0])
+      next unless @equipment_manager.get_tool?(@craft_type, tool.tool_types[0])
       case bput("give #{info['repair-npc']}", "I don't repair those here", 'What is it', "There isn't a scratch on that", 'Just give it to me again', 'I will not', "I can't fix those.  They only have so many uses and then you must buy another.")
       when /scratch/, /I will not/, /They only have so many uses/
         @equipment_manager.return_tool?(@craft_type, tool.tool_types[0])
