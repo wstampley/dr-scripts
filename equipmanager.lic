@@ -92,6 +92,10 @@ class EquipmentManager
     items.find { |item| item.crafts.include?(craft_type) && item.tool_types.include?(tool_type) }
   end
 
+  def get_tool_info_for_craft(craft_type)
+    items.select { |item| item.crafts.include?(craft_type) }
+  end
+
   def get_tool?(craft_type, tool_type)
     # Check gear for matching item
     item = items.find { |item| item.crafts.include?(craft_type) && item.tool_types.include?(tool_type) }
