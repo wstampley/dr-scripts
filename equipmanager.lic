@@ -67,6 +67,7 @@ class EquipmentManager
     add_tools('alchemy', @settings.alchemy_tools)
     add_tools('carving', @settings.carving_tools)
     add_tools('enchanting', @settings.enchanting_tools)
+    add_tools('mining', [@settings.mining_implement])
   end
 
   def add_tools(craft_type, tools_items)
